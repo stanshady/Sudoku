@@ -24,7 +24,6 @@ public class SudokuTile extends StackPane {
         HEIGHT = height;
         text = new Text("");
 
-
         //boarder also sets the size of the StackPane
         //since it will be the largest child
         boarder = new Rectangle(getTranslateX(), getTranslateY(), WIDTH, HEIGHT);
