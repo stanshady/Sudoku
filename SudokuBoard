@@ -1,0 +1,248 @@
+import javafx.scene.layout.Pane;
+import javafx.scene.shape.Line;
+
+import java.util.ArrayList;
+
+
+public class SudokuBoard extends Pane {
+
+    //All sizes are scaled via TILE_WIDTH, TILE_HEIGHT
+    private final double TILE_WIDTH;
+    private final double TILE_HEIGHT;
+
+    //solved is the global "kill switch" used by the
+    //recursive brute force method fillSudoku().
+    private boolean solved;
+
+    //board stores the 9x9 grid of SudokuTiles
+    private SudokuTile[][] board;
+
+    //pure data version of board
+    //HAVEN'T USED THIS YET...don't need it?
+    private int[][] boardData;
+
+    SudokuBoard(double tileWidth, double tileHeight) {
+        TILE_WIDTH = tileWidth;
+        TILE_HEIGHT = tileHeight;
+        setPrefSize(9 * TILE_WIDTH, 9 * TILE_HEIGHT);
+        solved = false;
+        board = new SudokuTile[9][9];
+
+        //populate board with SudokuTiles.
+        //Have to be careful with (x,y) != (row, col) in a 2D array
+        for (int row = 0; row < 9; row++) {
+            for (int col = 0; col < 9; col++) {
+                SudokuTile tile = new SudokuTile(TILE_HEIGHT, TILE_WIDTH);
+                tile.setTranslateX(col * TILE_WIDTH);
+                tile.setTranslateY(row * TILE_HEIGHT);
+
+                board[row][col] = tile;
+                getChildren().addAll(tile);
+            }
+        }
+
+        drawPattern();
+    }
+
+    //draws # pattern.
+    private void drawPattern() {
+        Line hor0 = new Line(0,
+                3 * TILE_HEIGHT,
+                9 * TILE_WIDTH,
+                3 * TILE_HEIGHT);
+        Line hor1 = new Line(0,
+                6 * TILE_HEIGHT,
+                9 * TILE_WIDTH,
+                6 * TILE_HEIGHT);
+        Line ver0 = new Line(3 * TILE_WIDTH,
+                0,
+                3 * TILE_WIDTH,
+                9 * TILE_HEIGHT);
+        Line ver1 = new Line(6 * TILE_WIDTH,
+                0,
+                6 * TILE_WIDTH,
+                9 * TILE_HEIGHT);
+        hor0.setStrokeWidth(TILE_WIDTH * 0.05);
+        hor1.setStrokeWidth(TILE_WIDTH * 0.05);
+        ver0.setStrokeWidth(TILE_WIDTH * 0.05);
+        ver1.setStrokeWidth(TILE_WIDTH * 0.05);
+
+        getChildren().addAll(hor0, hor1, ver0, ver1);
+    }
+
+    //(backtracking?) Recursive method to brute force fill a Sudoku.
+    //Will try a digit from an ArrayList of available numbers.
+    //When there are no more available tries, it will go back
+    //one layer (and hence one tile) and try the next available number
+    // on that layer, tile.
+    //fillSudoku() first checks global variable solved.
+    //solved is "kill switch"
+    public void fillSudoku(int row,
+                           int col,
+                           ArrayList<Integer> available) {
+
+        //board is solved!
+        if (row >= 9) {
+            solved = true;
+            return;
+        }
+
+        //stop all layers and return
+        if (solved)
+            return;
+
+        //general case
+        for (int i = 0; i < available.size(); i++) {
+            //try temp.
+            int temp = available.get(i);
+            board[row][col].setText(String.valueOf(temp));
+
+            boolean keepGoing = isLegalVertical(col)
+                    && isLegalSquare(assignSquareAdjust(row, col));
+
+            //try works. Go one layer/tile deeper.
+            //We have to adjust row,col and available
+            if (keepGoing) {
+
+                //pass row, col properly to move through the 2D array
+                //when col wraps back around to 0, we remake
+                //available to include all 1-9
+                if (col >= 8) {
+
+                    fillSudoku(row + 1, 0, fillRandom());
+                    //if we are here in the code it is because we have
+                    //returned one layer.  This happens due to two reasons:
+                    //solved == true or we failed all our tries.
+
+                } else {
+                    available.remove(i);
+                    fillSudoku(row, col + 1, available);
+                    //if we are here in the code it is because we have
+                    //returned one layer.  This happens due to two reasons:
+                    //solved == true or we failed all our tries.
+
+                    //put temp back into available
+                    available.add(i, temp);
+                }
+
+            }
+
+            //solved is the global "kill switch".
+            //if this line isn't here, then we don't
+            //properly kill the method once we find a solution.
+            if (solved)
+                return;
+
+            //try failed. i++ try again.
+        }
+
+        //all available tries failed.
+        //return back one layer and back into their loop
+        //but first set digit back to zero.
+        board[row][col].setText("");
+
+        return;
+    }
+
+    public ArrayList<Integer> fillRandom() {
+        ArrayList<Integer> temp = fillAvailable();
+        ArrayList<Integer> random = new ArrayList<>();
+
+        while (temp.size() > 0) {
+            int rand = (int) (Math.random() * temp.size());
+            random.add(temp.remove(rand));
+        }
+        return random;
+    }
+
+    public ArrayList<Integer> fillAvailable() {
+        ArrayList<Integer> available = new ArrayList<>();
+        for (int i = 1; i < 10; i++)
+            available.add(i);
+        return available;
+    }
+
+    //Fast algorithm based on isPandigital()
+    public boolean isLegalVertical(int col) {
+        int booleanArray = 0;
+        int compare, tempDigit;
+
+        for (int row = 0; row < 9; row++) {
+            tempDigit = board[row][col].getDigit();
+            compare = booleanArray;
+
+            if (tempDigit == 0)
+                continue;
+
+            booleanArray |= (1 << (tempDigit - 1));
+            if (booleanArray == compare)
+                return false;
+        }
+        return true;
+    }
+
+
+    //isLegalSquare takes the int[] adjust from the output
+    //of assignSquareAdjust.  adjust is used to start
+    //the row and col values of our loop
+    public boolean isLegalSquare(int[] adjust) {
+        int rowAdjust = adjust[0];
+        int colAdjust = adjust[1];
+
+        //based on isPandigital() algorithm
+        int booleanArray = 0;
+        int compare, tempDigit;
+
+        for (int row = rowAdjust; row < rowAdjust + 3; row++) {
+            for (int col = colAdjust; col < colAdjust + 3; col++) {
+                tempDigit = board[row][col].getDigit();
+                compare = booleanArray;
+
+                if (tempDigit == 0)
+                    continue;
+
+                //Magic is here.  Update booleanArray
+                //with a bitwise OR and see if it changed.
+                booleanArray |= (1 << (tempDigit - 1));
+                if (booleanArray == compare)
+                    return false;
+            }
+        }
+        return true;
+    }
+
+    //The 3x3 collection of tiles are organized
+    //into zones according to this pattern:
+    // 0 1 2
+    // 3 4 5
+    // 6 7 8
+    //assignSquareAdjust returns the starting adjustments
+    // to be used in isLegalSquare().
+    //These adjustments are determined by which
+    //zone row,col fall in.
+    public int[] assignSquareAdjust(int row, int col) {
+        if (row < 3 && col < 3)
+            return new int[]{0, 0};
+        else if (row < 3 && col > 2 && col < 6)
+            return new int[]{0, 3};
+        else if (row < 3 && col > 5)
+            return new int[]{0, 6};
+        else if (row > 2 && row < 6 && col < 3)
+            return new int[]{3, 0};
+        else if (row > 2 && row < 6 && col > 2 && col < 6)
+            return new int[]{3, 3};
+        else if (row > 2 && row < 6 && col > 5)
+            return new int[]{3, 6};
+        else if (row > 5 && col < 3)
+            return new int[]{6, 0};
+        else if (row > 5 && col > 2 && col < 6)
+            return new int[]{6, 3};
+        else //if(row > 5 && col > 5)
+            return new int[]{6, 6};
+    }
+
+    public SudokuTile[][] getBoard() {
+        return board;
+    }
+
+}
