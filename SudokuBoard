@@ -3,36 +3,33 @@ import javafx.scene.shape.Line;
 
 import java.util.ArrayList;
 
-
 public class SudokuBoard extends Pane {
 
     //All sizes are scaled via TILE_WIDTH, TILE_HEIGHT
     private final double TILE_WIDTH;
     private final double TILE_HEIGHT;
 
-    //solved is the global "kill switch" used by the
-    //recursive brute force method fillSudoku().
-    private boolean solved;
-
     //board stores the 9x9 grid of SudokuTiles
     private SudokuTile[][] board;
 
-    //pure data version of board
-    //HAVEN'T USED THIS YET...don't need it?
-    private int[][] boardData;
+    //solved is the global "kill switch" used by the
+    //recursive brute force method fillSudoku().
+    private boolean solved;
 
     SudokuBoard(double tileWidth, double tileHeight) {
         TILE_WIDTH = tileWidth;
         TILE_HEIGHT = tileHeight;
         setPrefSize(9 * TILE_WIDTH, 9 * TILE_HEIGHT);
-        solved = false;
         board = new SudokuTile[9][9];
+        solved = false;
 
         //populate board with SudokuTiles.
         //Have to be careful with (x,y) != (row, col) in a 2D array
         for (int row = 0; row < 9; row++) {
             for (int col = 0; col < 9; col++) {
                 SudokuTile tile = new SudokuTile(TILE_HEIGHT, TILE_WIDTH);
+
+                //notice X*col and Y*row
                 tile.setTranslateX(col * TILE_WIDTH);
                 tile.setTranslateY(row * TILE_HEIGHT);
 
@@ -40,7 +37,6 @@ public class SudokuBoard extends Pane {
                 getChildren().addAll(tile);
             }
         }
-
         drawPattern();
     }
 
@@ -71,21 +67,21 @@ public class SudokuBoard extends Pane {
     }
 
     //(backtracking?) Recursive method to brute force fill a Sudoku.
-    //Will try a digit from an ArrayList of available numbers.
+    //fillSudoku() first checks global variable solved.
+    //solved is "kill switch" that will halt (return) every layer.
+    //Starts with row,col == 0,0  Going one layer deeper means,
+    //incrementing row,col as going through a standard 2D array.
+    //With each SudokuTile at board[row][col], we try a digit from
+    // an ArrayList of available digits. (Available digits are
+    //repopulated as a random list of [1-9] at the start
+    // of each new row i.e. whenever row++)
     //When there are no more available tries, it will go back
     //one layer (and hence one tile) and try the next available number
-    // on that layer, tile.
-    //fillSudoku() first checks global variable solved.
-    //solved is "kill switch"
-    public void fillSudoku(int row,
-                           int col,
-                           ArrayList<Integer> available) {
-
+    // from that layer/tile.
+    public void fillSudoku(int row, int col, ArrayList<Integer> available) {
         //board is solved!
-        if (row >= 9) {
+        if (row >= 9)
             solved = true;
-            return;
-        }
 
         //stop all layers and return
         if (solved)
@@ -93,7 +89,7 @@ public class SudokuBoard extends Pane {
 
         //general case
         for (int i = 0; i < available.size(); i++) {
-            //try temp.
+            //try temp
             int temp = available.get(i);
             board[row][col].setText(String.valueOf(temp));
 
@@ -103,28 +99,27 @@ public class SudokuBoard extends Pane {
             //try works. Go one layer/tile deeper.
             //We have to adjust row,col and available
             if (keepGoing) {
-
-                //pass row, col properly to move through the 2D array
-                //when col wraps back around to 0, we remake
-                //available to include all 1-9
+                //Edge case: when col wraps back around to 0,
+                // we remake available to include all 1-9
                 if (col >= 8) {
-
                     fillSudoku(row + 1, 0, fillRandom());
                     //if we are here in the code it is because we have
                     //returned one layer.  This happens due to two reasons:
                     //solved == true or we failed all our tries.
+                }
 
-                } else {
+                //In general (col < 8) we have to remove temp from
+                // available before passing available to the next layer
+                else {
                     available.remove(i);
                     fillSudoku(row, col + 1, available);
                     //if we are here in the code it is because we have
                     //returned one layer.  This happens due to two reasons:
                     //solved == true or we failed all our tries.
 
-                    //put temp back into available
+                    //put temp back into available since we just returned
                     available.add(i, temp);
                 }
-
             }
 
             //solved is the global "kill switch".
@@ -133,17 +128,17 @@ public class SudokuBoard extends Pane {
             if (solved)
                 return;
 
-            //try failed. i++ try again.
+            //try (i.e. temp = available.get(i)) failed. i++ try again.
         }
 
         //all available tries failed.
         //return back one layer and back into their loop
         //but first set digit back to zero.
         board[row][col].setText("");
-
         return;
     }
 
+    //returns an ArrayList of random permutation of [1,9]
     public ArrayList<Integer> fillRandom() {
         ArrayList<Integer> temp = fillAvailable();
         ArrayList<Integer> random = new ArrayList<>();
@@ -155,6 +150,7 @@ public class SudokuBoard extends Pane {
         return random;
     }
 
+    //returns the ArrayList [1,2,...,8,9];
     public ArrayList<Integer> fillAvailable() {
         ArrayList<Integer> available = new ArrayList<>();
         for (int i = 1; i < 10; i++)
@@ -183,7 +179,7 @@ public class SudokuBoard extends Pane {
 
 
     //isLegalSquare takes the int[] adjust from the output
-    //of assignSquareAdjust.  adjust is used to start
+    //of assignSquareAdjust().  adjust is used to start
     //the row and col values of our loop
     public boolean isLegalSquare(int[] adjust) {
         int rowAdjust = adjust[0];
@@ -193,6 +189,7 @@ public class SudokuBoard extends Pane {
         int booleanArray = 0;
         int compare, tempDigit;
 
+        //runs loop in a 3x3 square starting at (rowAdjust, colAdjust)
         for (int row = rowAdjust; row < rowAdjust + 3; row++) {
             for (int col = colAdjust; col < colAdjust + 3; col++) {
                 tempDigit = board[row][col].getDigit();
@@ -211,23 +208,23 @@ public class SudokuBoard extends Pane {
         return true;
     }
 
-    //The 3x3 collection of tiles are organized
+    //The 3x3 collection of tiles can be organized
     //into zones according to this pattern:
     // 0 1 2
     // 3 4 5
     // 6 7 8
-    //assignSquareAdjust returns the starting adjustments
-    // to be used in isLegalSquare().
+    //assignSquareAdjust() returns the starting adjustments
+    // to row0,col0 to be used in isLegalSquare().
     //These adjustments are determined by which
     //zone row,col fall in.
     public int[] assignSquareAdjust(int row, int col) {
-        if (row < 3 && col < 3)
+        if (row < 3 && col < 3) //zone 0
             return new int[]{0, 0};
-        else if (row < 3 && col > 2 && col < 6)
+        else if (row < 3 && col > 2 && col < 6) //zone 1
             return new int[]{0, 3};
-        else if (row < 3 && col > 5)
+        else if (row < 3 && col > 5) //zone 2
             return new int[]{0, 6};
-        else if (row > 2 && row < 6 && col < 3)
+        else if (row > 2 && row < 6 && col < 3) //zone 3 etc
             return new int[]{3, 0};
         else if (row > 2 && row < 6 && col > 2 && col < 6)
             return new int[]{3, 3};
@@ -244,5 +241,4 @@ public class SudokuBoard extends Pane {
     public SudokuTile[][] getBoard() {
         return board;
     }
-
 }
