@@ -40,7 +40,10 @@ public class SudokuTile extends StackPane {
             if (event.getButton() == MouseButton.PRIMARY) {
                 text.setFill(Color.BLACK);
                 digitPlusPlus();
-                setText(String.valueOf(digit));
+                if (digit == 0)
+                    setText("");
+                else
+                    setText(String.valueOf(digit));
             }
             if (event.getButton() == MouseButton.SECONDARY) {
                 text.setFill(Color.BLACK);
@@ -57,15 +60,17 @@ public class SudokuTile extends StackPane {
     }
 
     public void digitPlusPlus() {
-        if (digit >= 9)
-            return;
-        digit++;
+        if (digit == 9)
+            digit = 0;
+        else
+            digit++;
     }
 
     public void digitMinusMinus() {
-        if (digit <= 0)
-            return;
-        digit--;
+        if (digit == 0)
+            digit = 9;
+        else
+            digit--;
     }
 
     public int getDigit() {
