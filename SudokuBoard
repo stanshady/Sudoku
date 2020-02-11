@@ -1,3 +1,4 @@
+import javafx.scene.control.Button;
 import javafx.scene.layout.Pane;
 import javafx.scene.shape.Line;
 
@@ -8,18 +9,33 @@ public class SudokuBoard extends Pane {
     //All sizes are scaled via TILE_WIDTH, TILE_HEIGHT
     private final double TILE_WIDTH;
     private final double TILE_HEIGHT;
+    private Button button;
 
     //board stores the 9x9 grid of SudokuTiles
     private SudokuTile[][] board;
 
+    //used for manual inputting a puzzle to be solved
+    private int[][] dataBoard = {{5, 3, 0, 0, 7, 0, 0, 0, 0},
+            {6, 0, 0, 1, 9, 5, 0, 0, 0},
+            {0, 9, 8, 0, 0, 0, 0, 6, 0},
+            {8, 0, 0, 0, 6, 0, 0, 0, 3},
+            {4, 0, 0, 8, 0, 3, 0, 0, 1},
+            {7, 0, 0, 0, 2, 0, 0, 0, 6},
+            {0, 6, 0, 0, 0, 0, 2, 8, 0},
+            {0, 0, 0, 4, 1, 9, 0, 0, 5},
+            {0, 0, 0, 0, 8, 0, 0, 7, 9}};
+
     //solved is the global "kill switch" used by the
-    //recursive brute force method fillSudoku().
+    //recursive method solveSudoku().
     private boolean solved;
 
     SudokuBoard(double tileWidth, double tileHeight) {
+
         TILE_WIDTH = tileWidth;
         TILE_HEIGHT = tileHeight;
-        setPrefSize(9 * TILE_WIDTH, 9 * TILE_HEIGHT);
+
+        //+50 for the solve button
+        setPrefSize(9 * TILE_WIDTH, 9 * TILE_HEIGHT + 50);
         board = new SudokuTile[9][9];
         solved = false;
 
@@ -37,6 +53,16 @@ public class SudokuBoard extends Pane {
                 getChildren().addAll(tile);
             }
         }
+
+        button = new Button("Solve");
+        button.setTranslateX(4.2 * TILE_WIDTH);
+        button.setTranslateY(9 * TILE_HEIGHT + 15);
+        button.setOnAction(event -> {
+            solveSudoku(0, 0, makeAvailable(0));
+        });
+
+        getChildren().addAll(button);
+
         drawPattern();
     }
 
@@ -66,77 +92,107 @@ public class SudokuBoard extends Pane {
         getChildren().addAll(hor0, hor1, ver0, ver1);
     }
 
-    //(backtracking?) Recursive method to brute force fill a Sudoku.
-    //fillSudoku() first checks global variable solved.
-    //solved is "kill switch" that will halt (return) every layer.
-    //Starts with row,col == 0,0  Going one layer deeper means,
-    //incrementing row,col as going through a standard 2D array.
-    //With each SudokuTile at board[row][col], we try a digit from
-    // an ArrayList of available digits. (Available digits are
-    //repopulated as a random list of [1-9] at the start
-    // of each new row i.e. whenever row++)
-    //When there are no more available tries, it will go back
-    //one layer (and hence one tile) and try the next available number
-    // from that layer/tile.
-    public void fillSudoku(int row, int col, ArrayList<Integer> available) {
+
+    //Solves any solvable Sudoku.
+    //Generalizes fillSudoku() since we can just
+    // call solveSudoku() on a blank board.
+    //See fillSudoku() for detailed comments.
+    public void solveSudoku(int row, int col, ArrayList<Integer> available) {
+
         //board is solved!
-        if (row >= 9)
+        if (row >= 9) {
             solved = true;
-
-        //stop all layers and return
-        if (solved)
             return;
-
-        //general case
-        for (int i = 0; i < available.size(); i++) {
-            //try temp
-            int temp = available.get(i);
-            board[row][col].setText(String.valueOf(temp));
-
-            boolean keepGoing = isLegalVertical(col)
-                    && isLegalSquare(assignSquareAdjust(row, col));
-
-            //try works. Go one layer/tile deeper.
-            //We have to adjust row,col and available
-            if (keepGoing) {
-                //Edge case: when col wraps back around to 0,
-                // we remake available to include all 1-9
-                if (col >= 8) {
-                    fillSudoku(row + 1, 0, fillRandom());
-                    //if we are here in the code it is because we have
-                    //returned one layer.  This happens due to two reasons:
-                    //solved == true or we failed all our tries.
-                }
-
-                //In general (col < 8) we have to remove temp from
-                // available before passing available to the next layer
-                else {
-                    available.remove(i);
-                    fillSudoku(row, col + 1, available);
-                    //if we are here in the code it is because we have
-                    //returned one layer.  This happens due to two reasons:
-                    //solved == true or we failed all our tries.
-
-                    //put temp back into available since we just returned
-                    available.add(i, temp);
-                }
-            }
-
-            //solved is the global "kill switch".
-            //if this line isn't here, then we don't
-            //properly kill the method once we find a solution.
-            if (solved)
-                return;
-
-            //try (i.e. temp = available.get(i)) failed. i++ try again.
         }
 
-        //all available tries failed.
-        //return back one layer and back into their loop
-        //but first set digit back to zero.
-        board[row][col].setText("");
-        return;
+        //special case for preset tiles
+        if (board[row][col].getDigit() != 0) {
+            if (col >= 8) {
+                solveSudoku(row + 1, 0, makeAvailable(row + 1));
+            } else {
+                solveSudoku(row, col + 1, available);
+            }
+            return;
+        }
+
+        //tile is blank
+        else {
+            for (int i = 0; i < available.size(); i++) {
+                int temp = available.get(i);
+                board[row][col].setText(String.valueOf(temp));
+
+                boolean keepGoing = isLegalVertical(col)
+                        && isLegalSquare(assignSquareAdjust(row, col));
+
+                if (keepGoing) {
+                    if (col >= 8) {
+                        solveSudoku(row + 1, 0, makeAvailable(row + 1));
+                    } else {
+                        available.remove(i);
+                        solveSudoku(row, col + 1, available);
+
+                        available.add(i, temp);
+                    }
+                    if (solved)
+                        return;
+
+
+                }
+
+            }
+
+            board[row][col].setText("");
+            return;
+        }
+
+
     }
+
+
+    //transfer dataBoard to board
+    public void transferDataBoard() {
+        for (int r = 0; r < 9; r++) {
+            for (int c = 0; c < 9; c++) {
+                if (dataBoard[r][c] == 0)
+                    continue;
+                String digit = String.valueOf(dataBoard[r][c]);
+                board[r][c].setText(digit);
+                board[r][c].makeColorBlack();
+            }
+        }
+    }
+
+    //makeAvailable() passes through 1 row of
+    //board and returns a list from the digits
+    //[1-9] that were NOT on the row of board
+    public ArrayList<Integer> makeAvailable(int row) {
+        ArrayList<Integer> available = fillAvailable();
+
+        //special case for row >= 9
+        if (row >= 9)
+            return available;
+
+        //if it finds a digit on the board
+        //it sets that corresponding digit in available
+        //to 0.
+        for (int col = 0; col < 9; col++) {
+            int temp = board[row][col].getDigit();
+            if (temp != 0) {
+                available.set(temp - 1, 0);
+            }
+        }
+
+        //removes all the zeros from available
+        for (int i = 0; i < available.size(); i++) {
+            if (available.get(i) == 0) {
+                available.remove(i);
+                i--;
+            }
+        }
+
+        return available;
+    }
+
 
     //returns an ArrayList of random permutation of [1,9]
     public ArrayList<Integer> fillRandom() {
@@ -236,6 +292,76 @@ public class SudokuBoard extends Pane {
             return new int[]{6, 3};
         else //if(row > 5 && col > 5)
             return new int[]{6, 6};
+    }
+
+    //(backtracking?) Recursive method to brute force fill a Sudoku.
+    //fillSudoku() first checks global variable solved.
+    //solved is "kill switch" that will halt (return) every layer.
+    //Starts with row,col == 0,0  Going one layer deeper means
+    //incrementing row,col as going through a standard 2D array.
+    //With each blank SudokuTile at board[row][col], we try a digit from
+    // an ArrayList of available digits. (Available digits are
+    //repopulated as a random list of [1-9] at the start
+    // of each new row i.e. whenever row++)
+    //When there are no more available tries, it will go back
+    //one layer (and hence one tile) and try the next available number
+    // from that layer/tile.
+    public void fillSudoku(int row, int col, ArrayList<Integer> available) {
+        //board is solved!
+        if (row >= 9) {
+            solved = true;
+            return;
+        }
+
+        //general case
+        for (int i = 0; i < available.size(); i++) {
+            //try temp
+            int temp = available.get(i);
+            board[row][col].setText(String.valueOf(temp));
+
+            boolean keepGoing = isLegalVertical(col)
+                    && isLegalSquare(assignSquareAdjust(row, col));
+
+            //try works. Go one layer/tile deeper.
+            //We have to adjust row,col and available
+            if (keepGoing) {
+                //Edge case: when col wraps back around to 0,
+                // we remake available to include all 1-9
+                if (col >= 8) {
+                    fillSudoku(row + 1, 0, fillRandom());
+                    //if we are here in the code it is because we have
+                    //returned one layer.  This happens due to two reasons:
+                    //solved == true or we failed all our tries.
+                }
+
+                //In general (col < 8) we have to remove temp from
+                // available before passing available to the next layer
+                else {
+                    available.remove(i);
+                    fillSudoku(row, col + 1, available);
+                    //if we are here in the code it is because we have
+                    //returned one layer.  This happens due to two reasons:
+                    //solved == true or we failed all our tries.
+
+                    //put temp back into available since we just returned
+                    available.add(i, temp);
+                }
+            }
+
+            //solved is the global "kill switch".
+            //if this line isn't here, then we don't
+            //properly kill the method once we find a solution.
+            if (solved)
+                return;
+
+            //try (i.e. temp = available.get(i)) failed. i++ try again.
+        }
+
+        //all available tries failed.
+        //return back one layer and back into their loop
+        //but first set digit back to zero.
+        board[row][col].setText("");
+        return;
     }
 
     public SudokuTile[][] getBoard() {
