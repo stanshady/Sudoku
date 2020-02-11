@@ -16,13 +16,15 @@ public class SudokuTile extends StackPane {
     //text will store the digit to be displayed
     private Text text;
 
-    //testing
+    //used by the mouseActions to increment or decrement
+    //the value in text.
     int digit = 0;
 
     SudokuTile(double width, double height) {
         WIDTH = width;
         HEIGHT = height;
         text = new Text("");
+        text.setFill(Color.RED);
 
         //boarder also sets the size of the StackPane
         //since it will be the largest child
@@ -35,14 +37,18 @@ public class SudokuTile extends StackPane {
 
         //handle events from mouse clicks:
         setOnMouseClicked(event -> {
-            //testing
             if (event.getButton() == MouseButton.PRIMARY) {
+                text.setFill(Color.BLACK);
                 digitPlusPlus();
                 setText(String.valueOf(digit));
             }
             if (event.getButton() == MouseButton.SECONDARY) {
+                text.setFill(Color.BLACK);
                 digitMinusMinus();
-                setText(String.valueOf(digit));
+                if (digit == 0)
+                    setText("");
+                else
+                    setText(String.valueOf(digit));
             }
         });
 
@@ -50,20 +56,17 @@ public class SudokuTile extends StackPane {
         getChildren().addAll(boarder, text);
     }
 
-    //testing
     public void digitPlusPlus() {
         if (digit >= 9)
             return;
         digit++;
     }
 
-    //testing
     public void digitMinusMinus() {
         if (digit <= 0)
             return;
         digit--;
     }
-
 
     public int getDigit() {
         if (text.getText().equals(""))
@@ -76,8 +79,12 @@ public class SudokuTile extends StackPane {
     public void setText(String digit) {
         text.setText(digit);
         text.setFont(new Font(0.75 * WIDTH));
-        text.setFill(Color.DARKBLUE);
-
-
     }
+
+
+    //used by transferDateBoard in SudokuBoard class
+    public void makeColorBlack() {
+        text.setFill(Color.BLACK);
+    }
+
 }
