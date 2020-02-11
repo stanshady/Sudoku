@@ -9,7 +9,6 @@ public class SudokuBoard extends Pane {
     //All sizes are scaled via TILE_WIDTH, TILE_HEIGHT
     private final double TILE_WIDTH;
     private final double TILE_HEIGHT;
-    private Button button;
 
     //board stores the 9x9 grid of SudokuTiles
     private SudokuTile[][] board;
@@ -30,11 +29,10 @@ public class SudokuBoard extends Pane {
     private boolean solved;
 
     SudokuBoard(double tileWidth, double tileHeight) {
-
         TILE_WIDTH = tileWidth;
         TILE_HEIGHT = tileHeight;
 
-        //+50 for the solve button
+        //+50 for the solve and clear buttons HBox
         setPrefSize(9 * TILE_WIDTH, 9 * TILE_HEIGHT + 50);
         board = new SudokuTile[9][9];
         solved = false;
@@ -53,15 +51,6 @@ public class SudokuBoard extends Pane {
                 getChildren().addAll(tile);
             }
         }
-
-        button = new Button("Solve");
-        button.setTranslateX(4.2 * TILE_WIDTH);
-        button.setTranslateY(9 * TILE_HEIGHT + 15);
-        button.setOnAction(event -> {
-            solveSudoku(0, 0, makeAvailable(0));
-        });
-
-        getChildren().addAll(button);
 
         drawPattern();
     }
@@ -135,8 +124,6 @@ public class SudokuBoard extends Pane {
                     }
                     if (solved)
                         return;
-
-
                 }
 
             }
